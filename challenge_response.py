@@ -163,63 +163,6 @@ class Client(Common):
 ###
 ### Fonctions de tests
 ###
-def singleServerClientTest():
-    '''
-    Test challenge-response utilisant un seul client et un seul serveur.
-    On part du principe qu'ils se connaissent déjà l'un l'autre.
-    '''
-
-    print("Single client-server challenge-response")
-
-    client = Client()
-    server = Server(nonce_expiration_limit=1)
-
-    # (Entropy: 141.3 bits, source: http://rumkin.com/tools/password/passchk.php)
-    PASSWORD = "laChaiseEstRougeLesFraisesAussi"
-
-    client.addServer(server, PASSWORD)
-    server.addClient(client, PASSWORD)
-
-    # 1. The client connects to the server.
-    pass
-
-    # 2. The server makes up some random data
-    challenge = server.generateChallenge()
-    print(f"\tserver challenge: {challenge}")
-
-    # 3. The server sends this data to client
-    pass
-
-    # 4. The client concatenates the random data with the password
-    serverPassword = client.serversKnown[server]
-    print(f"\tchallenge + password concatenation: {challenge + serverPassword}")
-
-    # 5. The client computes the hash of this value
-    response = client.generateResponse(challenge, serverPassword)
-    print(f"\tclient hashed response: {response}")
-
-    # 6. The client sends the resulting hash to the server
-    pass
-
-    # 7. The server runs the same command, and since the server (hopefully) got the same result, it lets the user in.
-    clientPassword = server.clientsKnown[client]
-    print(f"\tResponse = challenge? {server.checkResponse(response, challenge, clientPassword)}\n")
-
-    # Test de la garantie de l'unicité du nonce (devrait renvoyer une exception)
-    try:
-        server.checkResponse(client.generateResponse(challenge, PASSWORD), challenge, clientPassword)
-    except Exception as e:
-        print(e)
-
-    # Test de la limite d'expiration du nonce (devrait renvoyer une exception)
-
-    time.sleep(1)
-    try:
-        server.checkResponse(client.generateResponse(challenge, PASSWORD), challenge, clientPassword)
-    except Exception as e:
-        print(e)
-
-
 
 def generateClientsServers(passwordList, nb_clients=10, nb_servers=3):
     '''
@@ -277,14 +220,15 @@ def multiClientsServersTest():
         print(f"Test {i}:")
         # Selection d'un client et d'un serveur
         server = random.choice(servers)
-        client = random.choice(list(server.clientsKnown.keys()))
+        client = random.choice(clients)
         
 
         supposedServerPassword = None
         try:
             supposedServerPassword = client.serversKnown[server]
         except KeyError:
-            break
+            supposedServerPassword="LeClientEtLeServeurNeSeConnaissentPas"
+            print(f"\tThis challenge-response is supposed to fail, because the server and client don't know each other and have no shared password")
 
         # 1. The client connects to the server.
         pass
@@ -315,7 +259,7 @@ def multiClientsServersTest():
         print(f"\tResponse = challenge? {result}\n")
 
 
-def singleServerClientUsingServerKnowledgeTest():
+def singleServerClientTest():
     '''
     Test challenge-response utilisant un seul client et un seul serveur.
     On utilise les dictionnaires pour générer les challenges et les réponses.
@@ -356,14 +300,25 @@ def singleServerClientUsingServerKnowledgeTest():
     # 7. The server runs the same command, and since the server (hopefully) got the same result, it lets the user in.
     print(f"\tResponse = challenge? {server.checkResponseClient(response, client)}\n")
 
+    # Test de la garantie de l'unicité du nonce (devrait renvoyer une exception)
+    try:
+        server.checkResponseClient(client.generateResponseForServer(challenge, server), client)
+    except Exception as e:
+        print(e)
+
+    # Test de la limite d'expiration du nonce (devrait renvoyer une exception)
+
+    time.sleep(1)
+    try:
+        server.checkResponseClient(client.generateResponseForServer(challenge, server), client)
+    except Exception as e:
+        print(e)
+
 
 if __name__ == "__main__":
 
     # Test de plusieurs clients-serveurs
     multiClientsServersTest()
 
-    # Test d'un seul échange client-serveur mais avec connaissance
-    singleServerClientUsingServerKnowledgeTest()
-
-    # Test d'un seul échange client-serveur, avec gestion des erreurs liés au nonce déjà validé ou nonce déjà expiré
+    # Test d'un seul échange client-serveur mais avec connaissance, avec gestion des erreurs liés au nonce déjà validé ou nonce déjà expiré
     singleServerClientTest()
