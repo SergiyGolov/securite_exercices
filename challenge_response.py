@@ -6,7 +6,7 @@ Exercice    : Challenge-Response
 Donnée      : https://ssl.horus.ch/~schaefer/bin/view/HEArc/SecuriteINF3ExercicesAuthentification#4_Exercice_rendre_challenge_resp
 Cours       : Securité, Marc Schaeffer
 Organisation: HE-Arc Ingénierie, Neuchâtel
-Autors      : Kim Aurore Biloni & Sergiy Goloviatinsky
+Autors      : Kim Aurore Biloni & Sergiy Goloviatinski
 Date        : 10.03.2019
 """
 
@@ -16,10 +16,6 @@ import string
 from datetime import datetime, timedelta
 import time
 import random
-
-# TODO: tester d'utiliser directement le module python hmac pour hasher challenge+password ? https://docs.python.org/2/library/hmac.html
-# TODO: utiliser https://docs.python.org/3/library/hashlib.html#key-derivation pour stocker les mdp ? quoi que, on a vu en cours que ça ne changait rien il me semble
-
 
 ###
 ### Classe utilitaire commune
@@ -210,16 +206,19 @@ def singleServerClientTest():
     print(f"\tResponse = challenge? {server.checkResponse(response, challenge, clientPassword)}\n")
 
     # Test de la garantie de l'unicité du nonce (devrait renvoyer une exception)
-    #server.checkResponse(client.generateResponse(challenge, PASSWORD), challenge, clientPassword)
+    try:
+        server.checkResponse(client.generateResponse(challenge, PASSWORD), challenge, clientPassword)
+    except Exception as e:
+        print(e)
 
     # Test de la limite d'expiration du nonce (devrait renvoyer une exception)
-    '''
+
     time.sleep(1)
     try:
         server.checkResponse(client.generateResponse(challenge, PASSWORD), challenge, clientPassword)
     except Exception as e:
         print(e)
-    '''
+
 
 
 def generateClientsServers(passwordList, nb_clients=10, nb_servers=3):
@@ -233,7 +232,7 @@ def generateClientsServers(passwordList, nb_clients=10, nb_servers=3):
     # list of servers
     servers = [Server() for srv in range(nb_servers)]
 
-    for i in range(0, len(passwordList)):
+    for i in range(len(passwordList)):
         # Create the new client
         cl = Client()
         clients.append(cl)
@@ -242,7 +241,7 @@ def generateClientsServers(passwordList, nb_clients=10, nb_servers=3):
         nb_serversKnown = random.randint(1, nb_servers)
 
         # for the number of known servers by the client
-        for j in range(0, nb_serversKnown):
+        for j in range(nb_serversKnown):
             # choose a random server
             server = random.choice(servers)
             
@@ -277,14 +276,15 @@ def multiClientsServersTest():
     for i in range(1, 11):
         print(f"Test {i}:")
         # Selection d'un client et d'un serveur
-        client = random.choice(clients)
         server = random.choice(servers)
+        client = random.choice(list(server.clientsKnown.keys()))
+        
 
         supposedServerPassword = None
         try:
             supposedServerPassword = client.serversKnown[server]
-        except:
-            supposedServerPassword = "LeClientNeConnaitPasLeServeur"
+        except KeyError:
+            break
 
         # 1. The client connects to the server.
         pass
@@ -358,11 +358,12 @@ def singleServerClientUsingServerKnowledgeTest():
 
 
 if __name__ == "__main__":
-    # Test d'un seul échange client-serveur
-    singleServerClientTest()
 
     # Test de plusieurs clients-serveurs
     multiClientsServersTest()
 
     # Test d'un seul échange client-serveur mais avec connaissance
     singleServerClientUsingServerKnowledgeTest()
+
+    # Test d'un seul échange client-serveur, avec gestion des erreurs liés au nonce déjà validé ou nonce déjà expiré
+    singleServerClientTest()
