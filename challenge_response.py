@@ -36,6 +36,10 @@ class Server(Common):
         # limite d'expiration du nonce en secondes
         self.nonce_expiration_limit = nonce_expiration_limit
 
+        # dictionnaire de clients connus avec comme clé le client et comme valeur le mot de passe
+        self.clientsKnown = {}
+
+
     def generateSecureRandomString(self, stringLength=16):
         # precaution pour le générateur aléatoire: utilisation de modules python spécifiques
         # source: https://pynative.com/python-generate-random-string/ chapitre "Use_The_Secrets_module_to_generate_a_secure_random_string"
@@ -66,15 +70,20 @@ class Server(Common):
             raise Exception("The nonce has already been used")
 
         return isResponseOK
-
+    
+    def addClient(self, client, password):
+        self.clientsKnown[client] = password
 
 class Client(Common):
     def __init__(self):
-        pass
+        # Dictionaire de serveurs connus avec comme clé le serveur et comme valeur le mot de passe
+        self.serversKnown = {}
 
     def generateResponse(self, challenge, password):
         return self.hashChallengePasswordConcatenation(challenge, password)
 
+    def addServer(self, server, password):
+        self.serversKnown[server] = password
 
 if __name__ == "__main__":
     # On part du principe que le mot de passe a déjà été partagé entre le client et le serveur
@@ -88,17 +97,18 @@ if __name__ == "__main__":
         print(f"Test {i}:")
 
         # 1. The client connects to the server.
-        pass
+        client.addServer(server, PASSWORD)
 
         # 2. The server makes up some random data
         challenge = server.generateChallenge()
         print(f"\tserver challenge: {challenge}")
 
         # 3. The server sends this data to client
-        pass
+        server.addClient(client, PASSWORD)
 
         # 4. The client concatenates the random data with the password
-        print(f"\tchallenge + password concatenation: {challenge+PASSWORD}")
+        serverPassword = client.serversKnown[server]
+        print(f"\tchallenge + password concatenation: {challenge + serverPassword}")
 
         # 5. The client computes the hash of this value
         response = client.generateResponse(challenge, PASSWORD)
@@ -108,7 +118,8 @@ if __name__ == "__main__":
         pass
 
         # 7. The server runs the same command, and since the server (hopefully) got the same result, it lets the user in.
-        print(f"\tResponse = challenge? {server.checkResponse(response,PASSWORD,challenge)}\n")
+        clientPassword = server.clientsKnown[client]
+        print(f"\tResponse = challenge? {server.checkResponse(response,clientPassword,challenge)}\n")
 
 
     # Test de la garantie de l'unicité du nonce (devrait renvoyer une exception)
