@@ -7,6 +7,7 @@ import secrets
 import string
 from datetime import datetime, timedelta
 import time
+import random
 
 # TODO: tester d'utiliser directement le module python hmac pour hasher challenge+password ? https://docs.python.org/2/library/hmac.html
 # TODO: utiliser https://docs.python.org/3/library/hashlib.html#key-derivation pour stocker les mdp ? quoi que, on a vu en cours que ça ne changait rien il me semble
@@ -85,41 +86,146 @@ class Client(Common):
     def addServer(self, server, password):
         self.serversKnown[server] = password
 
-if __name__ == "__main__":
-    # On part du principe que le mot de passe a déjà été partagé entre le client et le serveur
+
+def singleServerClientTest():
+    '''
+    Test challenge-response utilisant un seul client et un seul serveur.
+    On part du principe qu'ils se connaissent déjà l'un l'autre.
+    '''
+
+    print("Single client-server challenge-response")
+
+    client = Client()
+    server = Server(nonce_expiration_limit=1)
+
     # (Entropy: 141.3 bits, source: http://rumkin.com/tools/password/passchk.php)
     PASSWORD = "laChaiseEstRougeLesFraisesAussi"
 
-    server = Server(nonce_expiration_limit=1)
-    client = Client()
+    client.addServer(server, PASSWORD)
+    server.addClient(client, PASSWORD)
+
+    # 1. The client connects to the server.
+    pass
+
+    # 2. The server makes up some random data
+    challenge = server.generateChallenge()
+    print(f"\tserver challenge: {challenge}")
+
+    # 3. The server sends this data to client
+    pass
+
+    # 4. The client concatenates the random data with the password
+    serverPassword = client.serversKnown[server]
+    print(f"\tchallenge + password concatenation: {challenge + serverPassword}")
+
+    # 5. The client computes the hash of this value
+    response = client.generateResponse(challenge, serverPassword)
+    print(f"\tclient hashed response: {response}")
+
+    # 6. The client sends the resulting hash to the server
+    pass
+
+    # 7. The server runs the same command, and since the server (hopefully) got the same result, it lets the user in.
+    clientPassword = server.clientsKnown[client]
+    print(f"\tResponse = challenge? {server.checkResponse(response,clientPassword,challenge)}\n")
+
+
+def generateClientsServers(passwordList, nb_clients=10, nb_servers=3):
+    '''
+    Genère un dictionnaire de clients et un dictionnaire de serveurs
+    à partir d'une liste de mot de passe.
+    Un client connaît un certain nombre de serveurs.
+    '''
+    # list of clients
+    clients = []
+    # list of servers
+    servers = [Server() for srv in range(nb_servers)]
+
+    for i in range(0, len(passwordList)):
+        # Create the new client
+        cl = Client()
+        clients.append(cl)
+
+        # Choose how many servers the client knows
+        nb_serversKnown = random.randint(1, nb_servers)
+
+        # for the number of known servers by the client
+        for j in range(0, nb_serversKnown):
+            # choose a random server
+            server = random.choice(servers)
+            
+            # choose a random password
+            password = random.choice(passwordList)
+
+            # create the relation between the client and the server
+            cl.addServer(server, password)
+            server.addClient(cl, password)
+
+    return clients, servers
+
+
+def multiClientsServersTest():
+    '''
+    Genère des clients et servers aléatoirement et essaie de les
+    connecter entre eux.
+    '''
+
+    print("Multi clients-servers challenge response")
+
+    PASSWORDS = [
+        "laChaiseEstRougeLesFraisesAussi",
+        "LeVioletEstUneJolieCouleur",
+        "JeVousConseilleDEcouterLeGroupePalace",
+        "CestDeLaMusiqueTresAgreablePourUneDimanchePluvieux",
+        "LeoWyndhamMattHodgesAndRupertTurner",
+    ]
+
+    clients,servers = generateClientsServers(PASSWORDS)
 
     for i in range(1, 11):
         print(f"Test {i}:")
+        # Selection d'un client et d'un serveur
+        client = random.choice(clients)
+        server = random.choice(servers)
+
+        supposedServerPassword = None
+        try:
+            supposedServerPassword = client.serversKnown[server]
+        except:
+            supposedServerPassword = "LeClientNeConnaitPasLeServeur"
 
         # 1. The client connects to the server.
-        client.addServer(server, PASSWORD)
+        pass
 
         # 2. The server makes up some random data
         challenge = server.generateChallenge()
         print(f"\tserver challenge: {challenge}")
 
         # 3. The server sends this data to client
-        server.addClient(client, PASSWORD)
+        pass
 
         # 4. The client concatenates the random data with the password
-        serverPassword = client.serversKnown[server]
-        print(f"\tchallenge + password concatenation: {challenge + serverPassword}")
+        print(f"\tchallenge + password concatenation: {challenge + supposedServerPassword}")
 
         # 5. The client computes the hash of this value
-        response = client.generateResponse(challenge, PASSWORD)
+        response = client.generateResponse(challenge, supposedServerPassword)
         print(f"\tclient hashed response: {response}")
 
         # 6. The client sends the resulting hash to the server
         pass
 
         # 7. The server runs the same command, and since the server (hopefully) got the same result, it lets the user in.
-        clientPassword = server.clientsKnown[client]
-        print(f"\tResponse = challenge? {server.checkResponse(response,clientPassword,challenge)}\n")
+        try:
+            clientPassword = server.clientsKnown[client]
+            result = server.checkResponse(response,clientPassword,challenge)
+        except:
+            result = False
+        print(f"\tResponse = challenge? {result}\n")
+
+
+if __name__ == "__main__":
+    #singleServerClientTest()
+    multiClientsServersTest()
 
 
     # Test de la garantie de l'unicité du nonce (devrait renvoyer une exception)
