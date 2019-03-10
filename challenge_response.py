@@ -320,5 +320,5 @@ if __name__ == "__main__":
     # Test de plusieurs clients-serveurs
     multiClientsServersTest()
 
-    # Test d'un seul échange client-serveur mais avec connaissance, avec gestion des erreurs liés au nonce déjà validé ou nonce déjà expiré
+    # Test d'un seul échange client-serveur, avec gestion des erreurs liés au nonce déjà validé ou nonce déjà expiré
     singleServerClientTest()
